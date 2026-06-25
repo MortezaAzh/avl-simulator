@@ -1,0 +1,522 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>AVL Data Simulator</title>
+<link rel="stylesheet" href="https://unpkg.com/leaflet@1.9.4/dist/leaflet.css"/>
+<script src="https://unpkg.com/leaflet@1.9.4/dist/leaflet.js"></script>
+<style>
+*{margin:0;padding:0;box-sizing:border-box}
+body{font-family:'Segoe UI',sans-serif;background:#0f1923;color:#e0e6ed;height:100vh;display:flex;flex-direction:column}
+#topbar{background:#151f2e;border-bottom:1px solid #1e3a5f;padding:8px 16px;display:flex;align-items:center;gap:12px;flex-wrap:wrap;z-index:1000}
+#topbar h1{font-size:14px;font-weight:600;color:#4a9eff;white-space:nowrap}
+.btn{padding:6px 14px;border-radius:5px;border:none;font-size:12px;font-weight:500;cursor:pointer;transition:.15s;white-space:nowrap}
+.btn-primary{background:#4a9eff;color:#fff}.btn-primary:hover{background:#2d85f0}
+.btn-primary:disabled{background:#2a4a6e;color:#5a7a9e;cursor:not-allowed}
+.btn-danger{background:#e05252;color:#fff}
+.btn-success{background:#2ecc71;color:#fff}
+.btn-outline{background:transparent;color:#4a9eff;border:1px solid #4a9eff}.btn-outline:hover{background:#1a3a5e}
+.sep{width:1px;height:22px;background:#1e3a5f}
+#status-text{font-size:11px;color:#7a9ec0;flex:1}
+#main{display:flex;flex:1;overflow:hidden}
+#sidebar{width:300px;min-width:300px;background:#151f2e;border-right:1px solid #1e3a5f;display:flex;flex-direction:column;overflow-y:auto}
+.panel{padding:12px 14px;border-bottom:1px solid #1e3a5f}
+.panel-title{font-size:10px;font-weight:600;color:#4a9eff;text-transform:uppercase;letter-spacing:.08em;margin-bottom:8px}
+.field{margin-bottom:8px}
+.field label{display:block;font-size:10px;color:#7a9ec0;margin-bottom:3px}
+.field input,.field select{width:100%;padding:5px 8px;border-radius:4px;background:#0f1923;border:1px solid #1e3a5f;color:#e0e6ed;font-size:12px}
+.point-row{display:flex;align-items:center;gap:6px;background:#0f1923;border:1px solid #1e3a5f;border-radius:4px;padding:5px 8px;margin-bottom:5px}
+.point-dot{width:8px;height:8px;border-radius:50%;flex-shrink:0}
+.point-dot.start{background:#2ecc71}.point-dot.end{background:#e05252}
+.point-coords{flex:1;color:#7a9ec0;font-size:10px}
+.point-label{font-weight:600;font-size:10px;color:#e0e6ed}
+
+/* Vehicle selector */
+.vtype-list{display:flex;flex-direction:column;gap:6px}
+.vtype-row{display:flex;align-items:center;gap:8px;background:#0f1923;border:1px solid #1e3a5f;border-radius:5px;padding:6px 8px}
+.vtype-row input[type=checkbox]{width:14px;height:14px;cursor:pointer;accent-color:#4a9eff}
+.vtype-icon{font-size:16px}
+.vtype-name{flex:1;font-size:12px;color:#e0e6ed}
+.vtype-count{width:48px;padding:3px 6px;border-radius:4px;background:#151f2e;border:1px solid #1e3a5f;color:#e0e6ed;font-size:12px;text-align:center}
+.vtype-count:disabled{opacity:.3}
+.vtype-tag{font-size:9px;padding:1px 5px;border-radius:3px;background:#1a3a2e;color:#2ecc71}
+.vtype-tag.water{background:#1a2a4a;color:#4a9eff}
+
+#vehicle-list{display:flex;flex-direction:column;gap:5px}
+.vehicle-card{background:#0f1923;border:1px solid #1e3a5f;border-radius:5px;padding:6px 8px;display:flex;align-items:center;gap:6px;font-size:11px}
+.vehicle-icon{font-size:15px}
+.vehicle-info{flex:1}
+.vehicle-name{font-weight:600;color:#e0e6ed;font-size:11px}
+.vehicle-status{font-size:9px;color:#7a9ec0}
+.vehicle-speed{font-size:10px;color:#4a9eff;font-weight:600}
+.v-badge{font-size:9px;padding:2px 5px;border-radius:3px;font-weight:600}
+.v-badge.active{background:#1a4a2e;color:#2ecc71}
+.v-badge.idle{background:#2a2a1a;color:#f0c040}
+.v-badge.stopped{background:#2a1a1a;color:#e05252}
+#data-log{flex:1;font-size:9px;font-family:monospace;color:#5a8ab0;overflow-y:auto;padding:8px;max-height:150px}
+.log-entry{margin-bottom:2px;line-height:1.4}
+.log-entry span{color:#4a9eff}
+#map{flex:1}
+#stats-bar{background:#151f2e;border-top:1px solid #1e3a5f;padding:5px 16px;display:flex;gap:20px;font-size:10px;color:#7a9ec0}
+#stats-bar b{color:#4a9eff}
+</style>
+</head>
+<body>
+<div id="topbar">
+  <h1>AVL Simulator</h1>
+  <div class="sep"></div>
+  <button class="btn btn-outline" id="btn-set-start">Set Start</button>
+  <button class="btn btn-outline" id="btn-set-end">Set End</button>
+  <div class="sep"></div>
+  <button class="btn btn-primary" id="btn-start" disabled>Start</button>
+  <button class="btn btn-danger" id="btn-stop" disabled>Stop</button>
+  <button class="btn btn-outline" id="btn-clear">Clear</button>
+  <div class="sep"></div>
+  <button class="btn btn-success" id="btn-export" disabled>Export 5 CSVs</button>
+  <button class="btn btn-success" id="btn-json" disabled>Export JSON</button>
+  <div id="status-text">Click "Set Start" then click on the map</div>
+</div>
+
+<div id="main">
+  <div id="sidebar">
+
+    <div class="panel">
+      <div class="panel-title">Route Points</div>
+      <div class="point-row">
+        <div class="point-dot start"></div><span class="point-label">A</span>
+        <span class="point-coords" id="coord-start">Not set</span>
+      </div>
+      <div class="point-row">
+        <div class="point-dot end"></div><span class="point-label">B</span>
+        <span class="point-coords" id="coord-end">Not set</span>
+      </div>
+    </div>
+
+    <div class="panel">
+      <div class="panel-title">Organization</div>
+      <div class="field">
+        <label>Name</label>
+        <input type="text" id="org-name" value="سازمان نمونه">
+      </div>
+      <div class="field">
+        <label>GPS interval (seconds)</label>
+        <input type="number" id="interval" value="5" min="1" max="60">
+      </div>
+    </div>
+
+    <div class="panel">
+      <div class="panel-title">Vehicles — select type & count</div>
+      <div class="vtype-list" id="vtype-list"></div>
+    </div>
+
+    <div class="panel">
+      <div class="panel-title">Live Vehicles</div>
+      <div id="vehicle-list"><div style="font-size:10px;color:#5a7a9e">Start simulation to see vehicles</div></div>
+    </div>
+
+    <div class="panel" style="flex:1">
+      <div class="panel-title">Data Log</div>
+      <div id="data-log"><div class="log-entry">Waiting...</div></div>
+    </div>
+
+  </div>
+  <div id="map"></div>
+</div>
+
+<div id="stats-bar">
+  <span>Positions: <b id="stat-points">0</b></span>
+  <span>Observations: <b id="stat-obs">0</b></span>
+  <span>Vehicles: <b id="stat-vehicles">0</b></span>
+  <span>Elapsed: <b id="stat-time">00:00</b></span>
+  <span>Distance: <b id="stat-dist">—</b></span>
+</div>
+
+<script>
+// ── VEHICLE TYPE DEFINITIONS ──────────────────────────────────────────────────
+const VTYPES = [
+  {type:'firetruck', icon:'🚒', name:'آتش نشانی', displayName:'Fire Truck',   maxSpeed:85,  isWater:false, hasCargo:false, color:'#ff6030'},
+  {type:'ambulance', icon:'🚑', name:'آمبولانس',  displayName:'Ambulance',    maxSpeed:90,  isWater:false, hasCargo:false, color:'#e05252'},
+  {type:'truck',     icon:'🚛', name:'تریلی',     displayName:'Truck',        maxSpeed:80,  isWater:false, hasCargo:true,  color:'#f0a030'},
+  {type:'camion',    icon:'🚚', name:'کامیون',    displayName:'Camion',       maxSpeed:85,  isWater:false, hasCargo:true,  color:'#f0c040'},
+  {type:'police',    icon:'🚔', name:'پلیس',      displayName:'Police Car',   maxSpeed:120, isWater:false, hasCargo:false, color:'#4a9eff'},
+  {type:'bus',       icon:'🚌', name:'اتوبوس',    displayName:'Bus',          maxSpeed:70,  isWater:false, hasCargo:false, color:'#2ecc71'},
+  {type:'car',       icon:'🚗', name:'خودروی سبک',displayName:'Light Vehicle',maxSpeed:110, isWater:false, hasCargo:false, color:'#a070f0'},
+  {type:'vessel',    icon:'🚢', name:'شناور',     displayName:'Vessel',       maxSpeed:40,  isWater:true,  hasCargo:false, color:'#30d0d0'},
+];
+
+// خلیج فارس و دریای عمان bbox
+const WATER_BBOX = {minLat:22.0, maxLat:27.5, minLng:50.0, maxLng:60.5};
+
+// ── BUILD VEHICLE SELECTOR UI ─────────────────────────────────────────────────
+const vtypeList = document.getElementById('vtype-list');
+VTYPES.forEach(t => {
+  const row = document.createElement('div');
+  row.className = 'vtype-row';
+  row.innerHTML = `
+    <input type="checkbox" id="chk-${t.type}" onchange="toggleVtype('${t.type}')">
+    <span class="vtype-icon">${t.icon}</span>
+    <span class="vtype-name">${t.displayName}</span>
+    ${t.isWater ? '<span class="vtype-tag water">Water</span>' : '<span class="vtype-tag">Land</span>'}
+    <input type="number" class="vtype-count" id="cnt-${t.type}" value="1" min="1" max="20" disabled>
+  `;
+  vtypeList.appendChild(row);
+});
+
+function toggleVtype(type) {
+  const chk = document.getElementById('chk-'+type);
+  const cnt = document.getElementById('cnt-'+type);
+  cnt.disabled = !chk.checked;
+}
+
+// ── MAP ───────────────────────────────────────────────────────────────────────
+const map = L.map('map').setView([35.7,51.4],13);
+L.tileLayer('https://{s}.tile.openstreetmap.org/{z}/{x}/{y}.png',{attribution:'© OpenStreetMap',maxZoom:19}).addTo(map);
+
+// Water bbox rectangle (visual)
+const waterRect = L.rectangle([[WATER_BBOX.minLat,WATER_BBOX.minLng],[WATER_BBOX.maxLat,WATER_BBOX.maxLng]],
+  {color:'#30d0d0',weight:1,opacity:0.4,fillOpacity:0.05,dashArray:'4,4'}).addTo(map);
+waterRect.bindTooltip('Persian Gulf / Gulf of Oman — Vessel zone',{permanent:false});
+
+// ── STATE ─────────────────────────────────────────────────────────────────────
+let startPoint=null, endPoint=null;
+let startMarker=null, endMarker=null;
+let routeCoords=[];
+let vehicles=[];
+let simInterval=null, timerInterval=null;
+let elapsedSec=0, settingMode=null, routeLayer=null;
+let db={organizations:[],vehicles:[],positions:[],parameters:[],observations:[]};
+let posId=1, obsId=1, simStartTime=null;
+
+const statusText=document.getElementById('status-text');
+const btnStart=document.getElementById('btn-start');
+const btnStop=document.getElementById('btn-stop');
+const btnExport=document.getElementById('btn-export');
+const btnJson=document.getElementById('btn-json');
+const dataLog=document.getElementById('data-log');
+
+function setStatus(m){statusText.textContent=m}
+
+// ── DATETIME HELPERS ──────────────────────────────────────────────────────────
+function fmtDatetime(d){
+  const pad=n=>String(n).padStart(2,'0');
+  return `${d.getFullYear()}-${pad(d.getMonth()+1)}-${pad(d.getDate())} ${pad(d.getHours())}:${pad(d.getMinutes())}:${pad(d.getSeconds())}`;
+}
+
+function simTime(offsetSeconds){
+  const d=new Date(simStartTime.getTime()+offsetSeconds*1000);
+  return fmtDatetime(d);
+}
+
+// ── POINT SETTING ─────────────────────────────────────────────────────────────
+document.getElementById('btn-set-start').onclick=()=>{settingMode='start';setStatus('Click map for START (A)');map.getContainer().style.cursor='crosshair'};
+document.getElementById('btn-set-end').onclick=()=>{settingMode='end';setStatus('Click map for END (B)');map.getContainer().style.cursor='crosshair'};
+
+map.on('click',async(e)=>{
+  if(!settingMode) return;
+  const {lat,lng}=e.latlng;
+  if(settingMode==='start'){
+    startPoint=[lat,lng];
+    document.getElementById('coord-start').textContent=`${lat.toFixed(5)}, ${lng.toFixed(5)}`;
+    if(startMarker) map.removeLayer(startMarker);
+    startMarker=L.circleMarker([lat,lng],{radius:10,color:'#2ecc71',fillColor:'#2ecc71',fillOpacity:1}).addTo(map).bindPopup('Start (A)').openPopup();
+  } else {
+    endPoint=[lat,lng];
+    document.getElementById('coord-end').textContent=`${lat.toFixed(5)}, ${lng.toFixed(5)}`;
+    if(endMarker) map.removeLayer(endMarker);
+    endMarker=L.circleMarker([lat,lng],{radius:10,color:'#e05252',fillColor:'#e05252',fillOpacity:1}).addTo(map).bindPopup('End (B)').openPopup();
+  }
+  settingMode=null;
+  map.getContainer().style.cursor='';
+  if(startPoint&&endPoint){setStatus('Fetching route...');await fetchRoute();}
+  else setStatus(startPoint?'Now set END (B)':'Now set START (A)');
+});
+
+// ── ROUTE ─────────────────────────────────────────────────────────────────────
+async function fetchRoute(){
+  try{
+    const url=`https://router.project-osrm.org/route/v1/driving/${startPoint[1]},${startPoint[0]};${endPoint[1]},${endPoint[0]}?overview=full&geometries=geojson`;
+    const res=await fetch(url);
+    const data=await res.json();
+    if(!data.routes||!data.routes.length){setStatus('No route found.');return;}
+    routeCoords=data.routes[0].geometry.coordinates.map(c=>[c[1],c[0]]);
+    const dist=(data.routes[0].distance/1000).toFixed(1);
+    document.getElementById('stat-dist').textContent=dist+' km';
+    if(routeLayer) map.removeLayer(routeLayer);
+    routeLayer=L.polyline(routeCoords,{color:'#4a9eff',weight:3,opacity:0.5,dashArray:'6,4'}).addTo(map);
+    map.fitBounds(routeLayer.getBounds(),{padding:[40,40]});
+    setStatus(`Route loaded (${dist} km). Configure vehicles and click Start.`);
+    btnStart.disabled=false;
+  } catch(e){setStatus('Error fetching route.');}
+}
+
+// ── WATER ROUTE for vessels ───────────────────────────────────────────────────
+function generateWaterRoute(count){
+  // مسیر ساده داخل خلیج فارس
+  const pts=[];
+  for(let i=0;i<count;i++){
+    const t=i/(count-1);
+    const lat=WATER_BBOX.minLat+(WATER_BBOX.maxLat-WATER_BBOX.minLat)*0.3+Math.sin(t*Math.PI*3)*1.5;
+    const lng=WATER_BBOX.minLng+(WATER_BBOX.maxLng-WATER_BBOX.minLng)*t;
+    pts.push([Math.min(Math.max(lat,WATER_BBOX.minLat),WATER_BBOX.maxLat),
+              Math.min(Math.max(lng,WATER_BBOX.minLng),WATER_BBOX.maxLng)]);
+  }
+  return pts;
+}
+
+// ── PARAMS ────────────────────────────────────────────────────────────────────
+function getParams(vtype){
+  const common=[
+    {name:'speed',       alias:'سرعت',                    standardName:'speed'},
+    {name:'oil',         alias:'سوخت',                    standardName:'oil'},
+    {name:'acceleration',alias:'شتاب',                    standardName:'acceleration'},
+    {name:'status',      alias:'وضعیت روشن و خاموش بودن', standardName:'status'},
+    {name:'timeleft',    alias:'مدت زمان باقیمانده',      standardName:'timeleft'},
+    {name:'temperature', alias:'دمای موتور',               standardName:'temperature'},
+    {name:'odometer',    alias:'کارکرد',                  standardName:'odometer'},
+    {name:'heading',     alias:'جهت حرکت',                standardName:'heading'},
+  ];
+  if(!vtype.isWater) common.push({name:'rpm',alias:'دور موتور',standardName:'rpm'});
+  if(vtype.hasCargo) common.push({name:'weight',alias:'وزن بار',standardName:'weight'});
+  if(vtype.isWater)  common.push({name:'depth',alias:'عمق آب',standardName:'depth'});
+  return common;
+}
+
+// ── START SIMULATION ──────────────────────────────────────────────────────────
+document.getElementById('btn-start').onclick=()=>{
+  // collect selected vehicles
+  const selected=[];
+  VTYPES.forEach(t=>{
+    const chk=document.getElementById('chk-'+t.type);
+    if(chk.checked){
+      const cnt=parseInt(document.getElementById('cnt-'+t.type).value)||1;
+      for(let i=0;i<cnt;i++) selected.push({...t});
+    }
+  });
+  if(!selected.length){alert('حداقل یک نوع خودرو انتخاب کن');return;}
+  if(routeCoords.length<2){alert('ابتدا مسیر رو انتخاب کن');return;}
+
+  db={organizations:[],vehicles:[],positions:[],parameters:[],observations:[]};
+  posId=1;obsId=1;
+  simStartTime=new Date();
+  const now=fmtDatetime(simStartTime);
+
+  // Organization
+  const orgName=document.getElementById('org-name').value||'سازمان نمونه';
+  db.organizations.push({Id:1,Name:orgName,OrgCode:1,Creator:'simulator',CreateDate:now,Modifier:'',ModifyDate:''});
+
+  vehicles=[];
+  let paramId=1;
+  const waterRoute=generateWaterRoute(routeCoords.length);
+
+  selected.forEach((t,i)=>{
+    const vId=i+1;
+    const route=t.isWater?waterRoute:routeCoords;
+    db.vehicles.push({
+      Id:vId,Name:`${t.name} شماره ${vId}`,AvlCode:5000+vId,
+      GISLayer:['AA','BB','CC','DD','EE','FF','GG','HH','II','JJ','KK'][i]||'ZZ',
+      LastX:'',LastY:'',LastTime:'',LastObservation:'',
+      OrganizationId:1,Creator:'simulator',CreateDate:now,Modifier:'',ModifyDate:''
+    });
+
+    const params=getParams(t);
+    const pIds=[];
+    params.forEach(p=>{
+      db.parameters.push({Id:paramId,Name:p.name,Alias:p.alias,StandardName:p.standardName,
+        VehicleId:vId,Creator:'simulator',CreateDate:now,Modifier:'',ModifyDate:''});
+      pIds.push(paramId++);
+    });
+
+    vehicles.push({
+      id:vId,...t,route,
+      posIdx:Math.floor(Math.random()*Math.floor(route.length*0.1)),
+      speed:0,fuel:75+Math.random()*25,engineOn:true,
+      temp:85+Math.random()*10,odometer:Math.floor(Math.random()*50000),
+      rpm:800,weight:t.hasCargo?(Math.floor(Math.random()*20)+5):0,
+      depth:t.isWater?(5+Math.random()*10):0,
+      heading:0,acceleration:0,timeleft:0,
+      marker:null,paramIds:pIds,params,tickCount:0
+    });
+  });
+
+  document.getElementById('stat-vehicles').textContent=vehicles.length;
+  elapsedSec=0;
+  timerInterval=setInterval(()=>{
+    elapsedSec++;
+    const m=String(Math.floor(elapsedSec/60)).padStart(2,'0');
+    const s=String(elapsedSec%60).padStart(2,'0');
+    document.getElementById('stat-time').textContent=`${m}:${s}`;
+  },1000);
+
+  const intervalSec=parseInt(document.getElementById('interval').value)||5;
+  simInterval=setInterval(()=>tick(intervalSec),intervalSec*1000);
+
+  btnStart.disabled=true;btnStop.disabled=false;
+  btnExport.disabled=false;btnJson.disabled=false;
+  setStatus(`Simulating ${vehicles.length} vehicles — GPS every ${intervalSec}s`);
+};
+
+// ── TICK ──────────────────────────────────────────────────────────────────────
+function tick(intervalSec){
+  vehicles.forEach(v=>{
+    v.tickCount++;
+    const step=v.isWater?1:(v.hasCargo?1:2);
+    v.posIdx+=step;
+    if(v.posIdx>=v.route.length){v.posIdx=0;v.speed=0;}
+
+    const pos=v.route[v.posIdx];
+    const next=v.route[Math.min(v.posIdx+1,v.route.length-1)];
+    const dLng=next[1]-pos[1],dLat=next[0]-pos[0];
+    v.heading=Math.round((Math.atan2(dLng,dLat)*180/Math.PI+360)%360);
+
+    v.speed=v.posIdx===0?0:Math.round(v.maxSpeed*(0.4+Math.random()*0.6));
+    v.acceleration=parseFloat((Math.random()*4-2).toFixed(2));
+    v.engineOn=v.speed>0||Math.random()>0.05;
+    v.fuel=Math.max(0,v.fuel-(v.speed>0?0.08:0.005));
+    v.temp=v.speed>0?Math.min(105,v.temp+Math.random()*0.5):Math.max(70,v.temp-0.3);
+    v.odometer+=v.speed>0?Math.round(v.speed*intervalSec/3600):0;
+    v.rpm=v.speed>0?Math.round(800+v.speed*20+Math.random()*200):Math.round(700+Math.random()*100);
+    v.timeleft=v.speed>0?Math.round((v.route.length-v.posIdx)*intervalSec):0;
+    if(v.hasCargo) v.weight=Math.max(0,v.weight-Math.random()*0.01);
+    if(v.isWater)  v.depth=parseFloat((v.depth+Math.random()*0.5-0.25).toFixed(1));
+
+    // timestamp: simStartTime + ticks * interval
+    const posTime=simTime(v.tickCount*intervalSec);
+
+    // position row
+    db.positions.push({Id:posId,X:pos[1].toFixed(9),Y:pos[0].toFixed(9),Time:posTime,Creator:'simulator',VehicleId:v.id});
+
+    // observations
+    const vals=getVals(v);
+    v.params.forEach((p,idx)=>{
+      db.observations.push({Id:obsId,Value:vals[p.standardName]??0,PositionId:posId,ParameterId:v.paramIds[idx]});
+      obsId++;
+    });
+
+    // update vehicle LastX/LastY/LastTime
+    const vRow=db.vehicles.find(x=>x.Id===v.id);
+    if(vRow){vRow.LastX=pos[1];vRow.LastY=pos[0];vRow.LastTime=posTime;}
+    posId++;
+
+    // map marker
+    if(!v.marker){
+      v.marker=L.circleMarker(pos,{radius:7,color:v.color,fillColor:v.color,fillOpacity:0.9,weight:2})
+        .addTo(map).bindPopup(()=>makePopup(v));
+    } else {
+      v.marker.setLatLng(pos);
+      v.marker.setPopupContent(makePopup(v));
+    }
+    addLog(v);
+  });
+
+  document.getElementById('stat-points').textContent=db.positions.length;
+  document.getElementById('stat-obs').textContent=db.observations.length;
+  updateVehicleList();
+}
+
+function getVals(v){
+  return {
+    speed:v.speed,
+    oil:parseFloat(v.fuel.toFixed(1)),
+    acceleration:v.acceleration,
+    status:v.engineOn?1:0,
+    timeleft:v.timeleft,
+    temperature:parseFloat(v.temp.toFixed(1)),
+    odometer:v.odometer,
+    heading:v.heading,
+    rpm:v.isWater?0:v.rpm,
+    weight:parseFloat((v.weight||0).toFixed(2)),
+    depth:parseFloat((v.depth||0).toFixed(1)),
+  };
+}
+
+function makePopup(v){
+  const vals=getVals(v);
+  return `<b>${v.icon} ${v.displayName}</b><br>
+    Speed: ${v.speed} km/h | Heading: ${v.heading}°<br>
+    Fuel: ${vals.oil}% | Temp: ${vals.temperature}°C<br>
+    Engine: ${v.engineOn?'ON':'OFF'}${!v.isWater?` | RPM: ${vals.rpm}`:''}
+    ${v.hasCargo?`<br>Cargo: ${vals.weight} ton`:''}
+    ${v.isWater?`<br>Depth: ${vals.depth} m`:''}`;
+}
+
+function updateVehicleList(){
+  const list=document.getElementById('vehicle-list');
+  list.innerHTML=vehicles.map(v=>{
+    const sc=v.speed>0?'active':(v.engineOn?'idle':'stopped');
+    const sl=v.speed>0?'Moving':(v.engineOn?'Idle':'Stopped');
+    return `<div class="vehicle-card">
+      <span class="vehicle-icon">${v.icon}</span>
+      <div class="vehicle-info">
+        <div class="vehicle-name">${v.displayName} <span style="color:#5a7a9e;font-size:9px">#${v.id}</span></div>
+        <div class="vehicle-status">Fuel:${Math.round(v.fuel)}% T:${Math.round(v.temp)}°C</div>
+      </div>
+      <span class="vehicle-speed">${v.speed}km/h</span>
+      <span class="v-badge ${sc}">${sl}</span>
+    </div>`;
+  }).join('');
+}
+
+function addLog(v){
+  const e=document.createElement('div');
+  e.className='log-entry';
+  e.innerHTML=`<span>[${new Date().toLocaleTimeString()}]</span> ${v.icon}${v.displayName} ${v.speed}km/h fuel:${Math.round(v.fuel)}%`;
+  dataLog.insertBefore(e,dataLog.firstChild);
+  if(dataLog.children.length>80) dataLog.removeChild(dataLog.lastChild);
+}
+
+// ── STOP / CLEAR ──────────────────────────────────────────────────────────────
+document.getElementById('btn-stop').onclick=()=>{
+  clearInterval(simInterval);clearInterval(timerInterval);simInterval=null;
+  btnStart.disabled=false;btnStop.disabled=true;
+  setStatus(`Stopped. ${db.positions.length} positions, ${db.observations.length} observations.`);
+};
+
+document.getElementById('btn-clear').onclick=()=>{
+  clearInterval(simInterval);clearInterval(timerInterval);
+  vehicles.forEach(v=>{if(v.marker)map.removeLayer(v.marker)});
+  vehicles=[];
+  db={organizations:[],vehicles:[],positions:[],parameters:[],observations:[]};
+  posId=1;obsId=1;
+  startPoint=null;endPoint=null;
+  if(startMarker)map.removeLayer(startMarker);
+  if(endMarker)map.removeLayer(endMarker);
+  if(routeLayer)map.removeLayer(routeLayer);
+  routeCoords=[];
+  document.getElementById('coord-start').textContent='Not set';
+  document.getElementById('coord-end').textContent='Not set';
+  document.getElementById('vehicle-list').innerHTML='<div style="font-size:10px;color:#5a7a9e">Start simulation to see vehicles</div>';
+  document.getElementById('data-log').innerHTML='<div class="log-entry">Waiting...</div>';
+  ['stat-points','stat-obs','stat-vehicles'].forEach(id=>document.getElementById(id).textContent='0');
+  document.getElementById('stat-time').textContent='00:00';
+  document.getElementById('stat-dist').textContent='—';
+  btnStart.disabled=true;btnStop.disabled=true;btnExport.disabled=true;btnJson.disabled=true;
+  setStatus('Cleared.');
+};
+
+// ── EXPORT ────────────────────────────────────────────────────────────────────
+document.getElementById('btn-export').onclick=()=>{
+  if(!db.positions.length){alert('No data yet.');return;}
+  [{name:'organizations',data:db.organizations},{name:'vehicles',data:db.vehicles},
+   {name:'positions',data:db.positions},{name:'parameters',data:db.parameters},
+   {name:'observations',data:db.observations}].forEach(t=>{
+    if(!t.data.length)return;
+    const keys=Object.keys(t.data[0]);
+    const csv='\uFEFF'+[keys.join(','),...t.data.map(r=>keys.map(k=>`"${r[k]??''}"`).join(','))].join('\n');
+    download(`avl_${t.name}.csv`,csv,'text/csv;charset=utf-8');
+  });
+};
+
+document.getElementById('btn-json').onclick=()=>{
+  if(!db.positions.length){alert('No data yet.');return;}
+  download('avl_data.json',JSON.stringify(db,null,2),'application/json');
+};
+
+function download(filename,content,type){
+  const a=document.createElement('a');
+  a.href=URL.createObjectURL(new Blob([content],{type}));
+  a.download=filename;a.click();
+}
+</script>
+</body>
+</html>
