@@ -1,4 +1,4 @@
-![AVL Simulator Screenshot](Screenshot.png)
+![AVL Simulator Screenshot](Screenshot.jpg)
 
 # AVL Data Simulator
 
