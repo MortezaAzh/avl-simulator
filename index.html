@@ -219,12 +219,18 @@ map.on('click',async(e)=>{
     startPoint=[lat,lng];
     document.getElementById('coord-start').textContent=`${lat.toFixed(5)}, ${lng.toFixed(5)}`;
     if(startMarker) map.removeLayer(startMarker);
-    startMarker=L.circleMarker([lat,lng],{radius:10,color:'#2ecc71',fillColor:'#2ecc71',fillOpacity:1}).addTo(map).bindPopup('Start (A)').openPopup();
+    startMarker=L.marker([lat,lng],{
+      icon: L.divIcon({className:'',html:'<div style="background:#2ecc71;color:#fff;font-weight:700;font-size:13px;width:32px;height:32px;border-radius:50%;display:flex;align-items:center;justify-content:center;border:3px solid #fff;box-shadow:0 2px 8px rgba(0,0,0,0.5)">A</div>',iconSize:[32,32],iconAnchor:[16,16]}),
+      zIndexOffset:1000
+    }).addTo(map).bindPopup('<b>Start Point (A)</b>').openPopup();
   } else {
     endPoint=[lat,lng];
     document.getElementById('coord-end').textContent=`${lat.toFixed(5)}, ${lng.toFixed(5)}`;
     if(endMarker) map.removeLayer(endMarker);
-    endMarker=L.circleMarker([lat,lng],{radius:10,color:'#e05252',fillColor:'#e05252',fillOpacity:1}).addTo(map).bindPopup('End (B)').openPopup();
+    endMarker=L.marker([lat,lng],{
+      icon: L.divIcon({className:'',html:'<div style="background:#e05252;color:#fff;font-weight:700;font-size:13px;width:32px;height:32px;border-radius:50%;display:flex;align-items:center;justify-content:center;border:3px solid #fff;box-shadow:0 2px 8px rgba(0,0,0,0.5)">B</div>',iconSize:[32,32],iconAnchor:[16,16]}),
+      zIndexOffset:1000
+    }).addTo(map).bindPopup('<b>End Point (B)</b>').openPopup();
   }
   settingMode=null;
   map.getContainer().style.cursor='';
@@ -400,8 +406,10 @@ function tick(intervalSec){
 
     // map marker
     if(!v.marker){
-      v.marker=L.circleMarker(pos,{radius:7,color:v.color,fillColor:v.color,fillOpacity:0.9,weight:2})
-        .addTo(map).bindPopup(()=>makePopup(v));
+      v.marker=L.marker(pos,{
+        icon: L.divIcon({className:'',html:`<div style="font-size:22px;filter:drop-shadow(0 2px 4px rgba(0,0,0,0.7));line-height:1">${v.icon}</div>`,iconSize:[28,28],iconAnchor:[14,14]}),
+        zIndexOffset:500
+      }).addTo(map).bindPopup(()=>makePopup(v));
     } else {
       v.marker.setLatLng(pos);
       v.marker.setPopupContent(makePopup(v));
