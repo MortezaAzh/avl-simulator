@@ -1,4 +1,3 @@
-![AVL Simulator Screenshot](Screenshot.jpg)
 # AVL Data Simulator
 
 A browser-based tool for simulating realistic AVL (Automatic Vehicle Location) data along real road networks — built for WebGIS platform testing.
